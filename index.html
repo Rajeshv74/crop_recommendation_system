@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Crop Recommendation System 🌾</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+
+<style>
+  /* ========= Base / layout (preserve your look) ========= */
+  :root{
+    --glass-bg: rgba(255,255,255,0.14);
+    --glass-strong: rgba(255,255,255,0.20);
+    --accent: linear-gradient(90deg,#1b5e20,#43a047);
+    --muted: rgba(255,255,255,0.92);
+  }
+  html,body{height:100%;margin:0;font-family:'Poppins',sans-serif;background:
+    url('{{ url_for("static", filename="images/images.png") }}') center/cover fixed;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+  .header{ text-align:center;padding:22px;font-size:32px;font-weight:700;color:#fff;
+    text-shadow:0 4px 15px rgba(0,0,0,0.6); }
+  .container{ width:92%; max-width:1400px; margin:10px auto 40px; display:flex; gap:28px; flex-wrap:wrap; align-items:flex-start; justify-content:center; }
+
+  /* card / input styles */
+  .card{ width:420px; background:var(--glass-bg); padding:26px; border-radius:16px; color:#C8FECF; box-shadow:0 10px 25px rgba(0,0,0,0.35); backdrop-filter: blur(30px); }
+  label{ display:block; font-weight:600; margin-bottom:6px; }
+  input,select{ width:100%; padding:12px; border-radius:10px; border:none; margin-bottom:14px; font-size:15px; background:var(--muted); outline:none; }
+  input:focus,select:focus{ box-shadow:0 0 10px rgba(102,255,153,0.15); transform:scale(1.01); }
+  button{ width:100%; padding:13px; border-radius:12px; border:none; cursor:pointer; color:white; font-weight:700; font-size:16px; background:var(--accent); transition:all .18s ease; }
+  button:hover{ transform:translateY(-2px); }
+
+  /* image and result */
+  .image-box{ width:420px; height:420px; border-radius:18px; overflow:hidden; background:var(--glass-bg); box-shadow:0 10px 25px rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; }
+  .image-box img{ width:100%; height:100%; object-fit:cover; display:block; }
+.result-card{
+    width: 420px;
+    padding: 30px;
+    border-radius: 18px;
+
+    /* Premium frosted glass effect */
+    background: rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(25px);
+
+    /* Soft glowing border */
+    border: 1px solid rgba(255, 255, 255, 0.25);
+
+    /* Beautiful shadow */
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+
+    color: #f2fff7;
+    animation: fadeIn 0.7s ease;
+}
+.result-card b{
+    color: #C8FECF;
+    font-size: 20px;
+}
+.result-card h3 {
+    margin-top: 0;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #ffffff;
+    text-shadow: 0 3px 8px rgba(0,0,0,0.4);
+}
+
+
+  /* small utilities */
+  .muted-small{ font-size:19px; color:white; }
+  .gap-sm{ margin-top:12px; }
+
+  /* badges */
+  .badge{ display:inline-block; padding:6px 12px; border-radius:12px; color:white; font-weight:700; }
+  .low{ background:#2e7d32; } .moderate{ background:#ffa726; } .high{ background:#ef5350; } .very{ background:#8e24aa; }
+
+  /* loader overlay */
+  #loaderOverlay{ position:fixed; inset:0; display:none; background:rgba(0,0,0,0.55); z-index:9998; align-items:center; justify-content:center; flex-direction:column; color:white; }
+  .spin{ width:54px; height:54px; border-radius:50%; border:6px solid rgba(255,255,255,0.25); border-top:6px solid #fff; animation:spin 1s linear infinite; margin-bottom:12px; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* ============ Modal styles ============ */
+  /* A - GLASS BLUR Modal (Crop Info) */
+  .modal-glass { position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:10000; }
+  .modal-glass .backdrop { position:absolute; inset:0; background:rgba(0,0,0,0.45); backdrop-filter: blur(6px); }
+  .modal-glass .panel { position:relative; width:520px; max-width:92%; background:rgba(255,255,255,0.08); border-radius:14px; padding:22px; color:white; box-shadow:0 10px 40px rgba(0,0,0,0.6); backdrop-filter: blur(12px); }
+
+  /* C - Card Popup Modal (Compare) */
+  .modal-card { position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:10010; }
+  .modal-card .cardbox { width:760px; max-width:96%; background:white; color:#111; border-radius:10px; padding:18px; box-shadow:0 12px 40px rgba(0,0,0,0.45); }
+
+  /* D - Bottom Sheet (Slide-up) */
+  .bottom-sheet { position:fixed; left:0; right:0; bottom:-110%; height:60%; max-height:640px; background:rgba(255,255,255,0.96); border-top-left-radius:18px; border-top-right-radius:18px; box-shadow:0 -10px 30px rgba(0,0,0,0.45); z-index:10020; transition:all .32s cubic-bezier(.2,.9,.2,1); overflow:auto; }
+  .bottom-sheet.show{ bottom:0; }
+  .sheet-handle{ width:80px; height:6px; background:#ddd; border-radius:20px; margin:10px auto; }
+
+  /* responsive */
+  @media(max-width:980px){
+    .container{ flex-direction:column; align-items:center; }
+  }
+
+  /* small button variants */
+  .btn-ghost{ background:transparent; color:rgba(255, 196, 47, 0.97); border:2px solid rgba(255,255,255,0.15); }
+  .btn-dark{ background:#ebeeef; }
+
+</style>
+</head>
+<body>
+
+  <div id="loaderOverlay"><div class="spin"></div><div>Processing…</div></div>
+
+  <div class="header">🌾 Crop Recommendation System 🌱</div>
+
+  <div class="container">
+
+    <!-- Form Card -->
+    <div class="card">
+      <form id="predictForm" autocomplete="on">
+        <label>Nitrogen</label>
+        <input name="Nitrogen" required>
+
+        <label>Phosphorus</label>
+        <input name="Phosphorus" required>
+
+        <label>Potassium</label>
+        <input name="Potassium" required>
+
+        <label>Temperature (°C)</label>
+        <input name="Temperature" id="tempBox" required>
+
+        <label>Humidity (%)</label>
+        <input name="Humidity" id="humidBox" required>
+
+        <label>pH</label>
+        <input name="Ph" required>
+
+        <label>Rainfall (mm)</label>
+        <input name="Rainfall" required>
+
+        <label>Select District</label>
+        <select name="District" id="districtSelect" required>
+          <option value="">-- Select District --</option>
+          {% for d in districts %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+        </select>
+
+        <label>Select Season</label>
+        <select name="Season" required>
+          <option>Kharif</option><option>Rabi</option><option>Zaid</option>
+        </select>
+
+        <button type="submit">🌱 Predict Crop 🌱</button>
+
+        <div class="gap-sm"></div>
+        <button type="button" id="btnPDF" class="btn-ghost" style="margin-bottom:6px;">📄 Download Report (PDF)</button>
+        <button type="button" id="btnSpeak" class="btn-ghost">🔊 Speak Result</button>
+      </form>
+    </div>
+
+    <!-- Image Box -->
+    <div class="image-box">
+      <img id="cropImage" src="{{ url_for('static', filename='images/img.jpg') }}" alt="crop image">
+    </div>
+
+    <!-- Result Card -->
+    <div class="result-card" id="resultCard" style="display:none;">
+      <h3>🌾 Prediction Result</h3>
+      <p class="muted-small"><b>District:</b> <span id="resDistrict"></span></p>
+      <p class="muted-small"><b>Drought Vulnerability:</b> <span id="resBadge" class="badge"></span></p>
+      <p class="muted-small"><b>Predicted Crop:</b> <span id="resCrop"></span></p>
+      <p class="muted-small"><b>Recommended Crops:</b> <span id="resRecommend"></span></p>
+
+      <div style="margin-top:12px;">
+        <button id="btnCompare" class="btn-ghost" style="margin-bottom:8px;">🆚 Compare Crops</button>
+        <button id="btnSheet" class="btn-ghost">📊 Open Charts & Extras</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ========== MODAL A: Glass Blur (Crop Info) ========== -->
+  <div id="modalGlass" class="modal-glass" role="dialog" aria-hidden="true">
+    <div class="backdrop" onclick="closeGlass()"></div>
+    <div class="panel" id="glassContent">
+      <!-- content injected by JS -->
+    </div>
+  </div>
+
+  <!-- ========== MODAL C: Card Popup (Compare) ========== -->
+  <div id="modalCard" class="modal-card" role="dialog" aria-hidden="true" style="display:none;">
+    <div style="position:relative;">
+      <div class="cardbox" id="compareContent">
+        <!-- content injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== BOTTOM SHEET (D) ========== -->
+  <div id="bottomSheet" class="bottom-sheet" aria-hidden="true">
+    <div style="padding:10px 12px;">
+      <div class="sheet-handle"></div>
+      <div id="sheetInner" style="padding:12px;">
+        <!-- injected -->
+        <h3>Charts & Extras</h3>
+        <div id="chartWrap">
+          <canvas id="chartCanvas" style="max-width:100%;"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ------------------ Helpers ------------------ */
+function showLoader(){ document.getElementById('loaderOverlay').style.display='flex'; }
+function hideLoader(){ document.getElementById('loaderOverlay').style.display='none'; }
+
+/* store last result globally */
+window.lastResult = null;
+
+/* ---------- AJAX: submit predict ---------- */
+$('#predictForm').on('submit', function(e){
+  e.preventDefault();
+  showLoader();
+  const data = {};
+  $(this).serializeArray().forEach(i => data[i.name] = i.value);
+
+  fetch('/predict', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  })
+  .then(r => r.json())
+  .then(res => {
+    hideLoader();
+    if(res.error){ alert('Error: ' + res.error); return; }
+    window.lastResult = res;
+    updateResultUI(res);
+  })
+  .catch(err => { hideLoader(); alert('Prediction failed'); console.error(err); });
+});
+
+/* ---------- update UI ---------- */
+function updateResultUI(res){
+  $('#resDistrict').text(res.district || '—');
+  $('#resCrop').text(res.predicted_crop || '—');
+  $('#resRecommend').text((res.recommended||[]).join(', ') || '—');
+
+  // drought badge styling
+  const v = (res.vulnerability||'Moderate').toLowerCase();
+  const badgeEl = $('#resBadge');
+  badgeEl.text(res.vulnerability || 'Moderate');
+  badgeEl.removeClass('low moderate high very');
+  if(v.includes('very')) badgeEl.addClass('very');
+  else if(v.includes('high')) badgeEl.addClass('high');
+  else if(v.includes('moderate')) badgeEl.addClass('moderate');
+  else badgeEl.addClass('low');
+
+  // image (if exists)
+  const img = '/static/crops/' + encodeURIComponent(res.predicted_crop) + '.jpg';
+  $('#cropImage').attr('src', img);
+
+  // show result card
+  $('#resultCard').fadeIn(220);
+}
+
+/* ---------- PDF Download (calls backend endpoint) ---------- */
+$('#btnPDF').on('click', function(){
+  if(!window.lastResult) return alert('Predict first to create report');
+  const r = window.lastResult;
+  // build a form to submit as POST (download_report expects form POST)
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/download_report';
+  // fields
+  const add = (n,v) => { const ip = document.createElement('input'); ip.type='hidden'; ip.name=n; ip.value=v; form.appendChild(ip); };
+  add('Nitrogen', r.inputs.N); add('Phosphorus', r.inputs.P); add('Potassium', r.inputs.K);
+  add('Temperature', r.inputs.temp); add('Humidity', r.inputs.humidity); add('Ph', r.inputs.ph);
+  add('Rainfall', r.inputs.rainfall); add('District', r.district); add('Season', r.season);
+  add('Predicted', r.predicted_crop || '');
+  document.body.appendChild(form);
+  form.submit();
+  form.remove();
+});
+
+/* ---------- Text-to-Speech: speak last result ---------- */
+$('#btnSpeak').on('click', function(){
+  if(!window.lastResult){ alert('Predict first'); return; }
+  speakResult();
+});
+function speakResult(){
+  const r = window.lastResult;
+  if(!r) return;
+  const text = `Predicted crop is ${r.predicted_crop}. Drought vulnerability is ${r.vulnerability}. Recommended crops are ${ (r.recommended||[]).join(', ') }`;
+  const u = new SpeechSynthesisUtterance(text);
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(u);
+}
+
+/* ---------- Crop Info Modal (Glass blur) ---------- */
+$('#btnInfo').on('click', function(){
+  if(!window.lastResult) { alert('Predict first'); return; }
+  const crop = window.lastResult.predicted_crop;
+  showGlassLoading();
+  fetch('/crop_info/' + encodeURIComponent(crop))
+    .then(r => r.json())
+    .then(info => {
+      hideGlassLoading();
+      renderGlassInfo(crop, info);
+    })
+    .catch(()=>{ hideGlassLoading(); alert('Unable to fetch crop info'); });
+});
+
+function renderGlassInfo(crop, info){
+  const html = `
+    <div style="display:flex;gap:14px;align-items:flex-start;">
+      <div style="flex:1">
+        <h2 style="margin:0 0 6px;">${crop}</h2>
+        <p style="margin:6px 0;"><b>Ideal Temp:</b> ${info.ideal_temp || '—'}</p>
+        <p style="margin:6px 0;"><b>Rainfall:</b> ${info.rainfall || '—'}</p>
+        <p style="margin:6px 0;"><b>Soil:</b> ${info.soil || '—'}</p>
+        <p style="margin:6px 0;"><b>Season:</b> ${info.season || '—'}</p>
+        <p style="margin:6px 0;"><b>Drought Tolerance:</b> ${info.drought_tolerance || '—'}</p>
+        <p style="margin:6px 0;"><b>Profit:</b> ${info.profit || '—'}</p>
+      </div>
+      <div style="width:150px;height:110px;border-radius:10px;overflow:hidden;background:#fff;">
+        <img src="/static/crops/${encodeURIComponent(crop)}.jpg" alt="${crop}" style="width:100%;height:100%;object-fit:cover;">
+      </div>
+    </div>
+    <div style="text-align:right;margin-top:12px;">
+      <button onclick="closeGlass()" style="background:#fff;color:#111;padding:8px 12px;border-radius:8px;">Close</button>
+    </div>
+  `;
+  $('#glassContent').html(html);
+  $('#modalGlass').fadeIn(200);
+}
+function closeGlass(){ $('#modalGlass').fadeOut(180); }
+function showGlassLoading(){ $('#glassContent').html('<div style="padding:30px;text-align:center"><div class="spin" style="border-top:6px solid #fff"></div><div style="color:white">Loading…</div></div>'); $('#modalGlass').show(); }
+
+/* ---------- Compare modal (Card popup) ---------- */
+$('#btnCompare').on('click', function(){
+  // show compare UI
+  const html = `
+    <div style="display:flex;gap:12px;align-items:flex-start;">
+      <div style="flex:1">
+        <h3 style="margin-top:0">Compare Crops</h3>
+        <select id="cmpA" style="width:100%;padding:10px;margin-bottom:8px;">
+          <option>Rice</option><option>Maize</option><option>Cotton</option><option>Mothbeans</option><option>Wheat</option>
+        </select>
+        <select id="cmpB" style="width:100%;padding:10px;margin-bottom:8px;">
+          <option>Maize</option><option>Rice</option><option>Cotton</option><option>Mothbeans</option><option>Wheat</option>
+        </select>
+        <button id="doCompare" style="background:#1976d2;color:#fff;padding:10px;border-radius:8px;border:none;">Compare</button>
+      </div>
+      <div id="cmpResult" style="flex:1;background:#fafafa;padding:10px;border-radius:8px;max-height:300px;overflow:auto;">
+        <small>Select and click Compare</small>
+      </div>
+    </div>
+    <div style="text-align:right;margin-top:12px;"><button onclick="closeCompare()" style="padding:8px 12px;border-radius:8px;background:#eee;color:red;border:none;">Close</button></div>
+  `;
+  $('#compareContent').html(html);
+  $('#modalCard').fadeIn(180);
+
+  $('#doCompare').on('click', function(){
+    const a = $('#cmpA').val(), b = $('#cmpB').val();
+    fetch('/compare',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({a,b})})
+      .then(r=>r.json()).then(d=>{
+        const left = d.a || {}, right = d.b || {};
+        const cmpHtml = `
+          <h4 style="margin:6px 0">${a}</h4>
+          <pre style="font-size:12px">${JSON.stringify(left,null,2)}</pre>
+          <h4 style="margin:6px 0">${b}</h4>
+          <pre style="font-size:12px">${JSON.stringify(right,null,2)}</pre>
+        `;
+        $('#cmpResult').html(cmpHtml);
+      }).catch(()=>$('#cmpResult').html('<small>Error loading compare</small>'));
+  });
+});
+function closeCompare(){ $('#modalCard').fadeOut(140); }
+
+/* ---------- Bottom sheet (charts & extras) ---------- */
+$('#btnSheet').on('click', function(){
+  if(!window.lastResult){ alert('Predict first'); return; }
+  const district = window.lastResult.district || '';
+  // fetch chart data endpoint
+  fetch('/chart_data/' + encodeURIComponent(district))
+    .then(r => r.json())
+    .then(data => {
+      // render chart in canvas
+      const ctx = document.getElementById('chartCanvas').getContext('2d');
+      if(window._chart) window._chart.destroy();
+      window._chart = new Chart(ctx, {
+        type:'line',
+        data: {
+          labels: data.months,
+          datasets: [
+            { label:'Rainfall (mm)', data:data.rainfall, borderColor:'#0288d1', backgroundColor:'rgba(2,136,209,0.08)', tension:0.3 },
+            { label:'Temperature (°C)', data:data.temp, borderColor:'#ef5350', backgroundColor:'rgba(239,83,80,0.06)', tension:0.3, yAxisID:'y2' }
+          ]
+        },
+        options:{
+          scales:{
+            y: { beginAtZero:true },
+            y2: { position:'right', beginAtZero:false, grid:{display:false} }
+          }
+        }
+      });
+      // show bottom sheet
+      document.getElementById('bottomSheet').classList.add('show');
+    })
+    .catch(()=>{ alert('Unable to fetch chart data'); });
+});
+
+// close bottom sheet on outside drag or click (simple)
+document.addEventListener('click', function(e){
+  const sheet = document.getElementById('bottomSheet');
+  if(!sheet.classList.contains('show')) return;
+  const target = e.target;
+  if(target.closest('.bottom-sheet')===null && target.id!=='btnSheet'){ sheet.classList.remove('show'); }
+});
+
+/* close on Esc keys for modals */
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape'){ $('#modalGlass').hide(); $('#modalCard').hide(); document.getElementById('bottomSheet').classList.remove('show'); }
+});
+
+/* ---------- Auto-fill district defaults (optional) ---------- */
+$('#districtSelect').on('change', function(){
+  const d = $(this).val();
+  if(!d) return;
+  fetch('/district_defaults/'+encodeURIComponent(d))
+    .then(r=>r.json())
+    .then(js=>{
+      if(js.temp) $('#tempBox').val(js.temp);
+      if(js.humidity) $('#humidBox').val(js.humidity);
+      if(js.rainfall) $('input[name="Rainfall"]').val(js.rainfall);
+    }).catch(()=>{/*silent*/});
+});
+/* ---------- Save inputs to LocalStorage (silent) ---------- */
+const fields = ["Nitrogen","Phosphorus","Potassium","Temperature","Humidity","Ph","Rainfall","District","Season"];
+
+fields.forEach(name => {
+    const el = document.querySelector(`[name="${name}"]`);
+    if (!el) return;
+
+    el.addEventListener("input", () => {
+        localStorage.setItem(name, el.value);
+    });
+
+    el.addEventListener("change", () => {
+        localStorage.setItem(name, el.value);
+    });
+});
+
+/* ---------- small helper for initial clean state ---------- */
+$(function(){ $('#resultCard').hide(); });
+
+</script>
+
+<footer style="text-align:center;color:#e8f5e9;margin-bottom:28px;">
+  Made with ❤️ by Raju | ML + KSNDMC
+</footer>
+</body>
+</html>
